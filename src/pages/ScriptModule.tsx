@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { callAI } from '../services/aiService';
-import { SYSTEM_PROMPT_SCRIPT_WRITER } from '../data/prompts';
-import { TARGET_MARKETS, VISUAL_STYLES, SECONDS_PER_SCENE } from '../data/constants';
+import { SYSTEM_PROMPT_SCRIPT_WRITER, STYLE_RECOMMENDATION_PROMPT } from '../data/prompts';
+import { TARGET_MARKETS, VISUAL_STYLES, SECONDS_PER_SCENE, MODE_OPTIONS } from '../data/constants';
 import { showToast } from '../components/Toast';
 
 interface Props { onScriptGenerated: (segments: any[], style: string) => void; initialTopic?: string; }
@@ -12,14 +12,50 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
   const [market, setMarket] = useState('vn_motivation');
   const [style, setStyle] = useState('auto');
   const [loading, setLoading] = useState(false);
+  const [isRecommending, setIsRecommending] = useState(false);
   const [segments, setSegments] = useState<any[]>([]);
 
-  React.useEffect(() => { if (initialTopic) setTopic(initialTopic); }, [initialTopic]);
+  useEffect(() => {
+    if (initialTopic) setTopic(initialTopic);
+    else {
+      const savedTopic = localStorage.getItem('motivation_last_script_topic');
+      if (savedTopic) setTopic(savedTopic);
+    }
+    const savedSegs = localStorage.getItem('motivation_last_script_segments');
+    if (savedSegs) {
+      try {
+        const parsed = JSON.parse(savedSegs);
+        setSegments(parsed);
+      } catch (e) {}
+    }
+    
+    const savedStyle = localStorage.getItem('motivation_last_script_style');
+    if (savedStyle) setStyle(savedStyle);
+  }, [initialTopic]);
+
+  const handleStyleRecommend = async () => {
+    if (!topic) return showToast('Nhập chủ đề trước để AI phân tích!');
+    setIsRecommending(true);
+    try {
+      const prompt = `Chủ đề: "${topic}"`;
+      const result = await callAI(prompt, STYLE_RECOMMENDATION_PROMPT);
+      if (result && result.primary_style) {
+        setStyle(result.primary_style);
+        showToast(`AI Đề Xuất: ${result.primary_reason}`, 'success');
+      }
+    } catch (e: any) {
+      showToast(e.message);
+    } finally {
+      setIsRecommending(false);
+    }
+  };
 
   const scenes = Math.ceil((Math.max(0.1, duration) * 60) / SECONDS_PER_SCENE);
-  const mode = duration < 3 ? { name: '🟢 DAILY SPARK (<3m)', wpm: 130 } : duration <= 10 ? { name: '🔵 GROWTH GUIDE (3-10m)', wpm: 140 } : { name: '🟣 TRANSFORMATION SAGA (>10m)', wpm: 120 };
-  const words = Math.floor(duration * mode.wpm);
-  const modeColor = duration < 3 ? 'text-green-400 border-green-500/50 bg-green-900/10' : duration <= 10 ? 'text-blue-400 border-blue-500/50 bg-blue-900/10' : 'text-purple-400 border-purple-500/50 bg-purple-900/10';
+  const modeWpm = duration < 3 ? 130 : duration <= 10 ? 140 : 120;
+  const words = Math.floor(duration * modeWpm);
+  
+  const currentModeId = duration < 3 ? 'quick' : duration <= 10 ? 'story' : 'deep';
+  const currentMode = MODE_OPTIONS.find(m => m.id === currentModeId) || MODE_OPTIONS[0];
 
   const handleGenerate = async () => {
     if (!topic) return showToast('Nhập chủ đề!');
@@ -41,7 +77,13 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
         }));
       }
       setSegments(segs);
-      onScriptGenerated(segs, json.suggested_style || '');
+      
+      const finalStyle = styleObj?.id || json.suggested_style || 'auto';
+      localStorage.setItem('motivation_last_script_topic', topic);
+      localStorage.setItem('motivation_last_script_segments', JSON.stringify(segs));
+      localStorage.setItem('motivation_last_script_style', finalStyle);
+      
+      onScriptGenerated(segs, finalStyle);
     } catch (e: any) { showToast(e.message); }
     finally { setLoading(false); }
   };
@@ -53,7 +95,7 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-[slideIn_0.4s_ease-out]">
+    <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
       <div className="bg-[#0f0f11] border border-white/10 p-6 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)]">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><i className="fa-solid fa-feather-alt text-orange-500" /> Soạn Kịch Bản Truyền Cảm Hứng</h2>
         <div className="space-y-4">
@@ -64,7 +106,7 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-[#151515] border border-white/5 rounded-xl p-4 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-orange-500/50" />
-              <label className="text-xs font-bold text-slate-400 uppercase mb-3 block flex items-center gap-2"><i className="fa-solid fa-clock text-orange-400" /> THỜI LƯỢNG (PHÚT)</label>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><i className="fa-solid fa-clock text-orange-400" /> THỜI LƯỢNG (PHÚT)</label>
               <div className="flex items-center gap-5">
                 <input type="number" value={duration} step={0.5} onChange={e => setDuration(parseFloat(e.target.value) || 1)} className="w-20 bg-black border border-white/10 rounded-lg p-3 text-2xl font-black text-white text-center outline-none" />
                 <div className="flex flex-col gap-1.5 text-xs">
@@ -74,17 +116,23 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
               </div>
             </div>
             <div className="bg-[#151515] border border-white/5 rounded-xl p-4 flex flex-col justify-center">
-              <label className="text-xs font-bold text-slate-400 uppercase mb-2 block flex items-center gap-2"><i className="fa-solid fa-globe text-orange-400" /> THỊ TRƯỜNG</label>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2"><i className="fa-solid fa-globe text-orange-400" /> THỊ TRƯỜNG</label>
               <select value={market} onChange={e => setMarket(e.target.value)} className="w-full bg-black border border-white/10 rounded-lg p-3 text-sm text-white outline-none cursor-pointer">
                 {Object.values(TARGET_MARKETS).map(m => <option key={m.id} value={m.id}>{m.flag} {m.name}</option>)}
               </select>
             </div>
           </div>
-          <div className={`border rounded-xl p-4 transition-all ${modeColor}`}>
-            <div className="font-bold">{mode.name}</div>
+          <div className={`border rounded-xl p-4 transition-all ${currentModeId === 'quick' ? 'text-green-400 border-green-500/50 bg-green-900/10' : currentModeId === 'story' ? 'text-blue-400 border-blue-500/50 bg-blue-900/10' : 'text-purple-400 border-purple-500/50 bg-purple-900/10'}`}>
+            <div className="font-bold">{currentMode.name}</div>
+            <div className="text-xs mt-1 opacity-80">{currentMode.desc}</div>
           </div>
           <div className="bg-[#151515] border border-white/5 rounded-xl p-4">
-            <label className="text-xs font-bold text-slate-400 uppercase mb-2 block flex items-center gap-2"><i className="fa-solid fa-palette text-pink-400" /> PHONG CÁCH VISUAL</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2"><i className="fa-solid fa-palette text-pink-400" /> PHONG CÁCH VISUAL</label>
+              <button onClick={handleStyleRecommend} disabled={isRecommending || !topic} className="text-xs bg-orange-900/50 text-orange-200 px-3 py-1 rounded hover:bg-orange-800 disabled:opacity-50">
+                {isRecommending ? <i className="fa-solid fa-sync animate-spin" /> : <i className="fa-solid fa-wand-magic-sparkles" />} AI Đề Xuất
+              </button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {VISUAL_STYLES.map(s => (
                 <button key={s.id} onClick={() => setStyle(s.id)}

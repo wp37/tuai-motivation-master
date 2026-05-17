@@ -68,7 +68,8 @@ REQUIRED JSON OUTPUT:
   ]
 }
 
-BE SPECIFIC. USE DATA. PROVIDE ACTIONABLE INSIGHTS.`;
+BE SPECIFIC. USE DATA. PROVIDE ACTIONABLE INSIGHTS.
+RESPOND ALL TEXT FIELDS IN VIETNAMESE.`;
 
 export const SYSTEM_PROMPT_SCRIPT_WRITER = `# SYSTEM ROLE: SENIOR MOTIVATIONAL STORYTELLER & PERSONAL DEVELOPMENT EXPERT.
 Bạn là chuyên gia kể chuyện truyền cảm hứng hàng đầu, kết hợp tâm lý học tích cực và khoa học hành vi.
@@ -140,7 +141,8 @@ REQUIRED JSON OUTPUT:
   }
 }
 
-BE SPECIFIC. PROVIDE ACTIONABLE CONTENT.`;
+BE SPECIFIC. PROVIDE ACTIONABLE CONTENT.
+RESPOND ALL TEXT FIELDS IN VIETNAMESE.`;
 
 export const SYSTEM_PROMPT_MARKET_ANALYST = `You are a Digital Market Analyst & Product Sourcing Expert specializing in Motivation, Self-Help, and Personal Development niche products.
 
@@ -204,3 +206,21 @@ REQUIRED JSON OUTPUT:
 }
 
 BE SPECIFIC WITH NUMBERS. PROVIDE ACTIONABLE PRODUCT IDEAS.`;
+
+export const STYLE_RECOMMENDATION_PROMPT = `Bạn là Motivation Content Director.
+Phân tích chủ đề sau và đề xuất phong cách video PHÙ HỢP NHẤT.
+
+DANH SÁCH STYLES:
+- sunrise_epic: Bình minh hùng vĩ, ánh sáng vàng cam, khung cảnh thiên nhiên rộng lớn. Phù hợp: Khởi đầu mới, hy vọng, hành trình dài.
+- urban_hustle: Thành phố hiện đại, ánh đèn neon, năng lượng đô thị, khởi nghiệp. Phù hợp: Công việc, start-up, năng lượng, nỗ lực làm việc cường độ cao.
+- minimal_wisdom: Tối giản, typography mạnh, nền tối, trích dẫn nổi bật. Phù hợp: Triết lý sâu sắc, lời khuyên cuộc sống, khoảng lặng chiêm nghiệm.
+- nature_journey: Hành trình thiên nhiên, con đường phía trước, rừng xanh, ánh sáng. Phù hợp: Khám phá bản thân, bình yên, kiên trì, vượt qua khó khăn.
+- stage_speaker: Sân khấu TED talk, spotlight, khán giả, năng lượng truyền cảm hứng. Phù hợp: Chia sẻ thông điệp mạnh mẽ, diễn thuyết, kết nối đám đông.
+
+Trả về JSON (chỉ trả về chuỗi JSON thuần túy, không có markdown formatting như \`\`\`json):
+{
+  "primary_style": "style_id",
+  "primary_reason": "Lý do (tiếng Việt)",
+  "alternative_style": "style_id",
+  "alternative_reason": "Lý do (tiếng Việt)"
+}`;

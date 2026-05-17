@@ -77,3 +77,17 @@ export const TAB_COLORS: Record<TabId, { bg: string; border: string; text: strin
   seo: { bg: 'bg-[#0f2015]', border: 'border-green-500/50', text: 'text-green-300', shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.15)]' },
   market: { bg: 'bg-[#291e0f]', border: 'border-yellow-500/50', text: 'text-yellow-300', shadow: 'shadow-[0_0_15px_rgba(234,179,8,0.15)]' },
 };
+
+export const TAB_NAMES: Record<TabId, { name: string; desc: string; icon: string }> = {
+  spy:    { name: '1. INSIGHT HUNTER',    desc: 'Discover Viral Secrets', icon: 'fa-solid fa-binoculars' },
+  script: { name: '2. SCRIPT FORGE',      desc: 'Craft The Story', icon: 'fa-solid fa-feather-alt' },
+  studio: { name: '3. VISION STUDIO',     desc: 'Visual Creation', icon: 'fa-solid fa-film' },
+  seo:    { name: '4. SEO IGNITER',       desc: 'Viral Optimization', icon: 'fa-solid fa-rocket' },
+  market: { name: '5. MARKET SCOUT',      desc: 'Product Sourcing', icon: 'fa-solid fa-shop' },
+};
+
+export const MODE_OPTIONS = [
+  { id: 'quick', name: '🟢 DAILY SPARK', desc: '<3m — Short, punchy motivation', scenes: 3, icon: '⚡' },
+  { id: 'story', name: '🔵 GROWTH GUIDE', desc: '3-10m — In-depth stories', scenes: 5, icon: '📖' },
+  { id: 'deep',  name: '🟣 TRANSFORMATION SAGA', desc: '>10m — Deep transformations',  scenes: 8, icon: '🎬' },
+];

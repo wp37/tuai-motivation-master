@@ -16,8 +16,13 @@ const App: React.FC = () => {
   const [showConfig, setShowConfig] = useState(false);
   const [uiLang, setUiLang] = useState<'vi' | 'en'>('vi');
   const [keyCount, setKeyCount] = useState(0);
-  const [scriptSegments, setScriptSegments] = useState<any[]>([]);
-  const [strategyTopic, setStrategyTopic] = useState('');
+  const [scriptSegments, setScriptSegments] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('motivation_last_script_segments');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [strategyTopic, setStrategyTopic] = useState(() => localStorage.getItem('motivation_last_script_topic') || '');
 
   useEffect(() => {
     loadApiConfig();
@@ -30,26 +35,18 @@ const App: React.FC = () => {
     setKeyCount(getValidKeyCount());
   };
 
-  const handleScriptGenerated = (segs: any[], _style: string) => {
+  const handleScriptGenerated = (segs: any[], _style: string, autoSwitch = true) => {
     setScriptSegments(segs);
-    setActiveTab('studio');
+    if (autoSwitch) setActiveTab('studio');
   };
 
   const handleUseStrategy = (title: string) => {
     setStrategyTopic(title);
+    localStorage.setItem('motivation_last_script_topic', title);
     setActiveTab('script');
   };
 
-  const renderPage = () => {
-    switch (activeTab) {
-      case 'spy': return <SpyModule onUseStrategy={handleUseStrategy} />;
-      case 'script': return <ScriptModule onScriptGenerated={handleScriptGenerated} initialTopic={strategyTopic} />;
-      case 'studio': return <StudioModule segments={scriptSegments} />;
-      case 'seo': return <SeoModule initialTopic={strategyTopic} />;
-      // market tab removed
-      default: return <SpyModule onUseStrategy={handleUseStrategy} />;
-    }
-  };
+  // renderPage removed in favor of display:none
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -67,7 +64,10 @@ const App: React.FC = () => {
           hasScriptData={scriptSegments.length > 0}
         />
         <div className="flex-1 bg-[#0a0a0a]/60 rounded-2xl border border-white/5 p-4 md:p-6 md:overflow-y-auto relative min-h-[500px] backdrop-blur-md shadow-[inset_0_0_50px_-20px_rgba(100,0,255,0.1)]">
-          {renderPage()}
+          <div style={{ display: activeTab === 'spy' ? 'block' : 'none' }}><SpyModule onUseStrategy={handleUseStrategy} /></div>
+          <div style={{ display: activeTab === 'script' ? 'block' : 'none' }}><ScriptModule onScriptGenerated={handleScriptGenerated} initialTopic={strategyTopic} /></div>
+          <div style={{ display: activeTab === 'studio' ? 'block' : 'none' }}><StudioModule segments={scriptSegments} /></div>
+          <div style={{ display: activeTab === 'seo' ? 'block' : 'none' }}><SeoModule initialTopic={strategyTopic} /></div>
         </div>
       </main>
 
