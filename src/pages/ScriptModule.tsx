@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT_SCRIPT_WRITER, STYLE_RECOMMENDATION_PROMPT } from '../dat
 import { TARGET_MARKETS, VISUAL_STYLES, SECONDS_PER_SCENE, MODE_OPTIONS } from '../data/constants';
 import { showToast } from '../components/Toast';
 
-interface Props { onScriptGenerated: (segments: any[], style: string) => void; initialTopic?: string; }
+interface Props { onScriptGenerated: (segments: any[], style: string, topic?: string, market?: string) => void; initialTopic?: string; }
 
 const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' }) => {
   const [topic, setTopic] = useState(initialTopic);
@@ -31,6 +31,9 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
     
     const savedStyle = localStorage.getItem('motivation_last_script_style');
     if (savedStyle) setStyle(savedStyle);
+
+    const savedMarket = localStorage.getItem('motivation_last_script_market');
+    if (savedMarket) setMarket(savedMarket);
   }, [initialTopic]);
 
   const handleStyleRecommend = async () => {
@@ -70,11 +73,15 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
       if (styleObj && styleObj.id !== 'auto') enforce = styleObj.prompt_enforce;
       else if (json.suggested_style) enforce = `, Visual Style: ${json.suggested_style}`;
       if (enforce) {
-        segs = segs.map((s: any) => ({
-          ...s,
-          video_prompt: s.video_prompt?.includes('Visual Style:') ? s.video_prompt : `${s.video_prompt} ${enforce}`,
-          image_prompt: s.image_prompt?.includes('Visual Style:') ? s.image_prompt : `${s.image_prompt} ${enforce}`,
-        }));
+        segs = segs.map((s: any) => {
+          const videoPrompt = s.video_prompt || '';
+          const imagePrompt = s.image_prompt || '';
+          return {
+            ...s,
+            video_prompt: videoPrompt.includes('Visual Style:') ? videoPrompt : (videoPrompt ? `${videoPrompt}${enforce}` : ''),
+            image_prompt: imagePrompt.includes('Visual Style:') ? imagePrompt : (imagePrompt ? `${imagePrompt}${enforce}` : ''),
+          };
+        });
       }
       setSegments(segs);
       
@@ -82,8 +89,9 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
       localStorage.setItem('motivation_last_script_topic', topic);
       localStorage.setItem('motivation_last_script_segments', JSON.stringify(segs));
       localStorage.setItem('motivation_last_script_style', finalStyle);
+      localStorage.setItem('motivation_last_script_market', market);
       
-      onScriptGenerated(segs, finalStyle);
+      onScriptGenerated(segs, finalStyle, topic, market);
     } catch (e: any) { showToast(e.message); }
     finally { setLoading(false); }
   };

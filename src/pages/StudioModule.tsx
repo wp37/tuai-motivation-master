@@ -36,7 +36,13 @@ const StudioModule: React.FC<Props> = ({ segments }) => {
     if (!segments.length) return;
     let csv = '\uFEFFScene,Time,Section,Character,Voice,Video Prompt,Image Prompt\n';
     segments.forEach((s, i) => {
-      csv += `${i + 1},"${s.time}","${s.section}","${s.character}","${(s.voice_text || '').replace(/"/g, '""')}","${(s.video_prompt || '').replace(/"/g, '""')}","${(s.image_prompt || '').replace(/"/g, '""')}"\n`;
+      const timeStr = s.time || '';
+      const secStr = s.section || '';
+      const charStr = s.character || '';
+      const voiceStr = s.chapter_voice_block || s.voice_text || '';
+      const videoStr = s.video_prompt || '';
+      const imageStr = s.image_prompt || '';
+      csv += `${i + 1},"${timeStr.replace(/"/g, '""')}","${secStr.replace(/"/g, '""')}","${charStr.replace(/"/g, '""')}","${voiceStr.replace(/"/g, '""')}","${videoStr.replace(/"/g, '""')}","${imageStr.replace(/"/g, '""')}"\n`;
     });
     downloadFile(csv, `kich_ban_full_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
     setShowExport(false);

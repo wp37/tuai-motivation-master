@@ -23,6 +23,7 @@ const App: React.FC = () => {
     } catch { return []; }
   });
   const [strategyTopic, setStrategyTopic] = useState(() => localStorage.getItem('motivation_last_script_topic') || '');
+  const [strategyMarket, setStrategyMarket] = useState(() => localStorage.getItem('motivation_last_script_market') || 'vn_motivation');
 
   useEffect(() => {
     loadApiConfig();
@@ -35,8 +36,16 @@ const App: React.FC = () => {
     setKeyCount(getValidKeyCount());
   };
 
-  const handleScriptGenerated = (segs: any[], _style: string, autoSwitch = true) => {
+  const handleScriptGenerated = (segs: any[], _style: string, topic?: string, market?: string, autoSwitch = true) => {
     setScriptSegments(segs);
+    if (topic) {
+      setStrategyTopic(topic);
+      localStorage.setItem('motivation_last_script_topic', topic);
+    }
+    if (market) {
+      setStrategyMarket(market);
+      localStorage.setItem('motivation_last_script_market', market);
+    }
     if (autoSwitch) setActiveTab('studio');
   };
 
@@ -67,7 +76,7 @@ const App: React.FC = () => {
           <div style={{ display: activeTab === 'spy' ? 'block' : 'none' }}><SpyModule onUseStrategy={handleUseStrategy} /></div>
           <div style={{ display: activeTab === 'script' ? 'block' : 'none' }}><ScriptModule onScriptGenerated={handleScriptGenerated} initialTopic={strategyTopic} /></div>
           <div style={{ display: activeTab === 'studio' ? 'block' : 'none' }}><StudioModule segments={scriptSegments} /></div>
-          <div style={{ display: activeTab === 'seo' ? 'block' : 'none' }}><SeoModule initialTopic={strategyTopic} /></div>
+          <div style={{ display: activeTab === 'seo' ? 'block' : 'none' }}><SeoModule initialTopic={strategyTopic} market={strategyMarket} /></div>
         </div>
       </main>
 

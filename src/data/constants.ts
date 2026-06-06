@@ -68,14 +68,13 @@ export const SEO_CHECKLIST_DATA: Record<string, { id: string; label: string }[]>
 
 export const SECONDS_PER_SCENE = 8;
 
-export type TabId = 'spy' | 'script' | 'studio' | 'seo' | 'market';
+export type TabId = 'spy' | 'script' | 'studio' | 'seo';
 
 export const TAB_COLORS: Record<TabId, { bg: string; border: string; text: string; shadow: string }> = {
   spy: { bg: 'bg-[#261a0a]', border: 'border-orange-900/50', text: 'text-orange-400', shadow: 'shadow-[0_0_15px_rgba(249,115,22,0.1)]' },
   script: { bg: 'bg-[#1e1a2e]', border: 'border-purple-500/50', text: 'text-purple-300', shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.15)]' },
   studio: { bg: 'bg-[#0f2129]', border: 'border-cyan-500/50', text: 'text-cyan-300', shadow: 'shadow-[0_0_15px_rgba(6,182,212,0.15)]' },
   seo: { bg: 'bg-[#0f2015]', border: 'border-green-500/50', text: 'text-green-300', shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.15)]' },
-  market: { bg: 'bg-[#291e0f]', border: 'border-yellow-500/50', text: 'text-yellow-300', shadow: 'shadow-[0_0_15px_rgba(234,179,8,0.15)]' },
 };
 
 export const TAB_NAMES: Record<TabId, { name: string; desc: string; icon: string }> = {
@@ -83,7 +82,6 @@ export const TAB_NAMES: Record<TabId, { name: string; desc: string; icon: string
   script: { name: '2. SCRIPT FORGE',      desc: 'Craft The Story', icon: 'fa-solid fa-feather-alt' },
   studio: { name: '3. VISION STUDIO',     desc: 'Visual Creation', icon: 'fa-solid fa-film' },
   seo:    { name: '4. SEO IGNITER',       desc: 'Viral Optimization', icon: 'fa-solid fa-rocket' },
-  market: { name: '5. MARKET SCOUT',      desc: 'Product Sourcing', icon: 'fa-solid fa-shop' },
 };
 
 export const MODE_OPTIONS = [
