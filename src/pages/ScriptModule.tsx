@@ -53,7 +53,15 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
     }
   };
 
-  const scenes = Math.ceil((Math.max(0.1, duration) * 60) / SECONDS_PER_SCENE);
+  const calculateScenes = (dur: number) => {
+    const d = Math.max(0.1, dur);
+    if (d <= 1) return Math.ceil((d * 60) / 10);      // 1m -> ~6 scenes
+    if (d <= 3) return Math.ceil((d * 60) / 15);      // 3m -> ~12 scenes
+    if (d <= 5) return Math.ceil((d * 60) / 20);      // 5m -> ~15 scenes
+    if (d <= 10) return Math.ceil((d * 60) / 30);     // 10m -> ~20 scenes
+    return Math.min(25, Math.ceil((d * 60) / 40));    // >10m -> cap at 25 scenes max
+  };
+  const scenes = calculateScenes(duration);
   const modeWpm = duration < 3 ? 130 : duration <= 10 ? 140 : 120;
   const words = Math.floor(duration * modeWpm);
   
