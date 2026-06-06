@@ -35,7 +35,7 @@ export const BATCH_CONFIG = {
   // Max scenes per single AI call. Larger = fewer calls but higher token load.
   maxScenesPerBatch: 6,
   // Delay (ms) between batch calls to avoid burst quota hits
-  batchDelay: 1200,
+  batchDelay: 2000,
   // Max retries per individual call before moving to next provider
   maxRetriesPerCall: 3,
   // Base wait (ms) on 429 — multiplied by attempt number (exponential backoff)
@@ -269,10 +269,42 @@ export async function callAIBatched(
     const endScene   = Math.min((b + 1) * maxScenesPerBatch, totalScenes);
 
     const prompt = buildPrompt(b, startScene, endScene, totalScenes);
-    const json   = await callAI(prompt, systemPrompt);
+    
+    // 🆕 Robust Batch-level retry loop (up to 3 attempts)
+    let json: any = null;
+    let lastError: any = null;
+    const maxBatchRetries = 3;
 
-    // Accept both {script:[...]} and [...] shapes
-    const batch: any[] = json.script || (Array.isArray(json) ? json : []);
+    for (let attempt = 0; attempt < maxBatchRetries; attempt++) {
+      try {
+        json = await callAI(prompt, systemPrompt);
+        if (json) break;
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`[Batch ${b + 1}] Attempt ${attempt + 1}/${maxBatchRetries} failed:`, e.message);
+        // Wait longer on retry to allow quota to reset
+        const retryDelay = 3000 * (attempt + 1);
+        if (attempt < maxBatchRetries - 1) await delay(retryDelay);
+      }
+    }
+
+    if (!json) {
+      throw new Error(`[Batch ${b + 1} Failed] ${lastError?.message || 'Lỗi không xác định'}`);
+    }
+
+    // 🆕 Robust scene array extraction (looks for script, raw array, or any array property)
+    let batch: any[] = [];
+    if (json.script && Array.isArray(json.script)) {
+      batch = json.script;
+    } else if (Array.isArray(json)) {
+      batch = json;
+    } else {
+      const firstArrayKey = Object.keys(json).find(k => Array.isArray(json[k]));
+      if (firstArrayKey) {
+        batch = json[firstArrayKey];
+      }
+    }
+    
     accumulated.push(...batch);
 
     onProgress?.(b + 1, totalBatches, [...accumulated]);
