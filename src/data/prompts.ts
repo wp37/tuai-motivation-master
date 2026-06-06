@@ -216,6 +216,7 @@ DANH SÁCH STYLES:
 - minimal_wisdom: Tối giản, typography mạnh, nền tối, trích dẫn nổi bật. Phù hợp: Triết lý sâu sắc, lời khuyên cuộc sống, khoảng lặng chiêm nghiệm.
 - nature_journey: Hành trình thiên nhiên, con đường phía trước, rừng xanh, ánh sáng. Phù hợp: Khám phá bản thân, bình yên, kiên trì, vượt qua khó khăn.
 - stage_speaker: Sân khấu TED talk, spotlight, khán giả, năng lượng truyền cảm hứng. Phù hợp: Chia sẻ thông điệp mạnh mẽ, diễn thuyết, kết nối đám đông.
+- whiteboard_learning: Vẽ tay bảng trắng (whiteboard sketch), hình vẽ vector 2D, minh họa giáo dục trực quan. Phù hợp: Kể câu chuyện học hỏi, lời khuyên phương pháp học tập, bài học tư duy trực quan, truyền cảm hứng qua sơ đồ/phác thảo.
 
 Trả về JSON (chỉ trả về chuỗi JSON thuần túy, không có markdown formatting như \`\`\`json):
 {

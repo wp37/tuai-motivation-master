@@ -45,6 +45,7 @@ export const VISUAL_STYLES: VisualStyle[] = [
   { id: 'minimal_wisdom', name: '📖 Minimal Wisdom', desc: 'Tối giản, typography mạnh, nền tối, trích dẫn nổi bật.', prompt_enforce: ', Visual Style: Minimalist dark background with elegant typography, single spotlight, clean composition, wisdom and contemplation, premium editorial look, subtle warm tones.' },
   { id: 'nature_journey', name: '🌿 Nature Journey', desc: 'Hành trình thiên nhiên, con đường phía trước, rừng xanh, ánh sáng.', prompt_enforce: ', Visual Style: Person walking on a path through beautiful nature, forest or mountain trail, sunlight filtering through trees, journey and growth metaphor, peaceful yet determined, warm color grading.' },
   { id: 'stage_speaker', name: '🎤 Stage Speaker', desc: 'Sân khấu TED talk, spotlight, khán giả, năng lượng truyền cảm hứng.', prompt_enforce: ', Visual Style: TED-style stage with dramatic spotlight, confident speaker on stage, audience silhouettes, motivational atmosphere, warm amber lighting, professional and powerful presentation.' },
+  { id: 'whiteboard_learning', name: '🎨 Whiteboard Sketch', desc: 'Vẽ tay bảng trắng, minh họa giáo dục trực quan, tối giản.', prompt_enforce: ', Visual Style: Minimalist 2D whiteboard vector illustration, clean hand-drawn sketch style, black ink outline on plain light background, friendly cartoon character, educational infographic, simple and clear composition, no complex gradients.' },
 ];
 
 export const SEO_CHECKLIST_DATA: Record<string, { id: string; label: string }[]> = {
