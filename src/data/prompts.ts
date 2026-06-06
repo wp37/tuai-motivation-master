@@ -113,7 +113,15 @@ Nếu phong cách gợi ý hoặc được chọn là "whiteboard_learning", b�
       "strategy_note": "Ghi chú chiến lược cảm xúc..."
     }
   ]
-}`;
+}
+
+# QUY TẮC BATCH (KHI NHẬN CONTINUATION_CONTEXT):
+Khi prompt có mục "GIỮ NHẤT QUÁN GIỌNG KỂ":
+1. ĐỌC KỸ "voice_fingerprint" — đó là MẪU giọng kể bạn PHẢI bắt chước.
+2. COPY CHÍNH XÁC: cách xưng hô (bạn/ta/mình), nhịp câu (ngắn gọn hay dài), mức cảm xúc (trầm hay sôi nổi), cách dùng ẩn dụ, cách đặt câu hỏi tu từ.
+3. KHÔNG BAO GIỜ reset giọng — đây là 1 câu chuyện liền mạch.
+4. Câu voice_text ĐẦU TIÊN phải nối tự nhiên với câu cuối batch trước.
+5. KHÔNG lặp lại nội dung đã nói — chỉ tiếp tục narrative arc.`;
 
 export const SYSTEM_PROMPT_SEO_MASTER = `You are a Motivational Content Strategist & YouTube SEO Expert specializing in Self-Help, Personal Development, and Inspirational content.
 
