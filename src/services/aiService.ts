@@ -35,11 +35,11 @@ export const BATCH_CONFIG = {
   // Max scenes per single AI call. Larger = fewer calls but higher token load.
   maxScenesPerBatch: 6,
   // Delay (ms) between batch calls to avoid burst quota hits
-  batchDelay: 2000,
+  batchDelay: 4000,
   // Max retries per individual call before moving to next provider
   maxRetriesPerCall: 3,
   // Base wait (ms) on 429 — multiplied by attempt number (exponential backoff)
-  quotaBackoffBase: 3000,
+  quotaBackoffBase: 5000,
 };
 
 // ── Config state ───────────────────────────────────────────────────────────────
@@ -241,24 +241,26 @@ export async function callAI(prompt: string, systemPrompt: string): Promise<any>
   throw new Error('❌ All enabled APIs failed or no valid API keys!');
 }
 
-// ── 🆕 BATCH SCRIPT GENERATOR ─────────────────────────────────────────────────
+// ── 🆕 BATCH SCRIPT GENERATOR (RESILIENT) ─────────────────────────────────────
 //
 // Splits a large scene request into multiple smaller AI calls.
-// Each batch = maxScenesPerBatch scenes → streamed back via onProgress callback.
+// RESILIENT: If a batch fails after retries, returns partial results instead
+// of throwing. The caller can resume from the last successful scene.
 //
-// Usage:
-//   const scenes = await callAIBatched(
-//     buildBatchPrompt,   // (batchIndex, startScene, endScene, totalScenes) => string
-//     systemPrompt,
-//     totalScenes,
-//     (done, total, partial) => setProgress({ done, total, scenes: partial })
-//   );
+// onProgress receives an optional 4th arg with error info when a batch fails.
 //
+export interface BatchError {
+  failedBatch: number;
+  totalBatches: number;
+  error: string;
+  completedScenes: number;
+}
+
 export async function callAIBatched(
   buildPrompt:  (batchIndex: number, startScene: number, endScene: number, total: number) => string,
   systemPrompt: string,
   totalScenes:  number,
-  onProgress?:  (batchDone: number, totalBatches: number, accumulatedScenes: any[]) => void,
+  onProgress?:  (batchDone: number, totalBatches: number, accumulatedScenes: any[], batchError?: BatchError) => void,
 ): Promise<any[]> {
   const { maxScenesPerBatch, batchDelay } = BATCH_CONFIG;
   const totalBatches = Math.ceil(totalScenes / maxScenesPerBatch);
@@ -270,7 +272,7 @@ export async function callAIBatched(
 
     const prompt = buildPrompt(b, startScene, endScene, totalScenes);
     
-    // 🆕 Robust Batch-level retry loop (up to 3 attempts)
+    // Robust Batch-level retry loop (up to 3 attempts)
     let json: any = null;
     let lastError: any = null;
     const maxBatchRetries = 3;
@@ -283,16 +285,25 @@ export async function callAIBatched(
         lastError = e;
         console.warn(`[Batch ${b + 1}] Attempt ${attempt + 1}/${maxBatchRetries} failed:`, e.message);
         // Wait longer on retry to allow quota to reset
-        const retryDelay = 3000 * (attempt + 1);
+        const retryDelay = 5000 * (attempt + 1);
         if (attempt < maxBatchRetries - 1) await delay(retryDelay);
       }
     }
 
+    // 🆕 RESILIENT: If batch fails, report error but DON'T throw — return partial results
     if (!json) {
-      throw new Error(`[Batch ${b + 1} Failed] ${lastError?.message || 'Lỗi không xác định'}`);
+      const batchError: BatchError = {
+        failedBatch: b + 1,
+        totalBatches,
+        error: lastError?.message || 'Lỗi không xác định',
+        completedScenes: accumulated.length,
+      };
+      console.error(`[Batch ${b + 1}/${totalBatches}] FAILED after ${maxBatchRetries} retries. Returning ${accumulated.length} partial scenes.`);
+      onProgress?.(b, totalBatches, [...accumulated], batchError);
+      return accumulated; // Return what we have instead of throwing
     }
 
-    // 🆕 Robust scene array extraction (looks for script, raw array, or any array property)
+    // Robust scene array extraction (looks for script, raw array, or any array property)
     let batch: any[] = [];
     if (json.script && Array.isArray(json.script)) {
       batch = json.script;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { callAI, callAIBatched, BATCH_CONFIG } from '../services/aiService';
+import type { BatchError } from '../services/aiService';
 import { SYSTEM_PROMPT_SCRIPT_WRITER, STYLE_RECOMMENDATION_PROMPT } from '../data/prompts';
 import { TARGET_MARKETS, VISUAL_STYLES, MODE_OPTIONS } from '../data/constants';
 import { showToast } from '../components/Toast';
@@ -138,8 +139,10 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
   const [isRecommending, setIsRecommending] = useState(false);
   const [segments,       setSegments]       = useState<any[]>([]);
 
-  // 🆕 Batch progress state
+  // 🆕 Batch progress + resume state
   const [batchProgress,  setBatchProgress]  = useState<{ done: number; total: number } | null>(null);
+  const [lastBatchError, setLastBatchError] = useState<BatchError | null>(null);
+  const [resumeFromScene, setResumeFromScene] = useState<number>(0);
 
   // Derived values
   const scenes        = calculateScenes(duration);
@@ -150,7 +153,6 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
   const currentModeId = duration < 3 ? 'quick' : duration <= 10 ? 'story' : 'deep';
   const currentMode   = MODE_OPTIONS.find(m => m.id === currentModeId) || MODE_OPTIONS[0];
 
-  // Restore state from localStorage
   useEffect(() => {
     if (initialTopic) { setTopic(initialTopic); }
     else {
@@ -167,7 +169,6 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
     if (savedMarket) setMarket(savedMarket);
   }, [initialTopic]);
 
-  // ── AI Style Recommend (unchanged) ──────────────────────────────────────────
   const handleStyleRecommend = async () => {
     if (!topic) return showToast('Nhập chủ đề trước để AI phân tích!');
     setIsRecommending(true);
@@ -181,12 +182,14 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
     finally { setIsRecommending(false); }
   };
 
-  // ── Main generate with BATCH logic ──────────────────────────────────────────
-  const handleGenerate = async () => {
+  const handleGenerate = async (isResume = false) => {
     if (!topic) return showToast('Nhập chủ đề!');
     setLoading(true);
     setBatchProgress(null);
-    setSegments([]);
+    setLastBatchError(null);
+
+    const existingSegs = isResume ? [...segments] : [];
+    if (!isResume) setSegments([]);
 
     try {
       const styleObj  = VISUAL_STYLES.find(s => s.id === style);
@@ -195,7 +198,6 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
       let   finalSegs: any[] = [];
 
       if (!isBatched) {
-        // ── Short video: single call (existing behaviour) ──────────────────────
         const prompt = [
           `TOPIC: "${topic}"`,
           `DURATION: ${duration}m | SCENE_COUNT: ${scenes}`,
@@ -209,25 +211,44 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
         finalSegs  = json.script || (Array.isArray(json) ? json : []);
 
       } else {
-        // ── Long video: batched calls ──────────────────────────────────────────
-        setBatchProgress({ done: 0, total: totalBatches });
-        let prevContext: BatchContext = EMPTY_CONTEXT;
+        const resumeOffset = isResume ? resumeFromScene : 0;
+        const remainingScenes = scenes - resumeOffset;
+        const resumeBatchTotal = Math.ceil(remainingScenes / BATCH_CONFIG.maxScenesPerBatch);
 
-        finalSegs = await callAIBatched(
+        setBatchProgress({ done: 0, total: resumeBatchTotal });
+        let prevContext: BatchContext = isResume
+          ? extractBatchContext(existingSegs)
+          : EMPTY_CONTEXT;
+
+        const newSegs = await callAIBatched(
           (batchIdx, startScene, endScene, total) =>
             buildBatchPrompt(
-              batchIdx, startScene, endScene, total,
+              batchIdx, startScene + resumeOffset, endScene + resumeOffset, scenes,
               topic, duration, mk.voice_lang, styleName, prevContext,
             ),
           SYSTEM_PROMPT_SCRIPT_WRITER,
-          scenes,
-          (batchDone, totalB, accumulated) => {
-            prevContext = extractBatchContext(accumulated);
+          remainingScenes,
+          (batchDone, totalB, accumulated, batchError) => {
+            const merged = [...existingSegs, ...accumulated];
+            prevContext = extractBatchContext(merged);
             setBatchProgress({ done: batchDone, total: totalB });
             // Stream scenes vào UI ngay sau mỗi batch
-            setSegments(applyStyleEnforce([...accumulated], styleObj));
+            setSegments(applyStyleEnforce(merged, styleObj));
+
+            // 🆕 Partial save after each successful batch
+            const partialStyled = applyStyleEnforce(merged, styleObj);
+            localStorage.setItem('motivation_last_script_segments', JSON.stringify(partialStyled));
+            localStorage.setItem('motivation_last_script_topic', topic);
+
+            // 🆕 Handle batch failure — keep partial, enable resume
+            if (batchError) {
+              setLastBatchError(batchError);
+              setResumeFromScene(merged.length);
+            }
           },
         );
+
+        finalSegs = [...existingSegs, ...newSegs];
       }
 
       // Apply style enforcement
@@ -241,11 +262,24 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
       localStorage.setItem('motivation_last_script_style',    finalStyle);
       localStorage.setItem('motivation_last_script_market',   market);
 
+      // Check if we got all scenes or partial
+      if (lastBatchError || styled.length < scenes) {
+        showToast(`⚠️ Đã tạo ${styled.length}/${scenes} cảnh. Nhấn "Tiếp Tục" để hoàn thành.`, 'success');
+      } else {
+        setResumeFromScene(0);
+        setLastBatchError(null);
+        showToast(`✅ Tạo xong ${styled.length} cảnh!`, 'success');
+      }
+
       onScriptGenerated(styled, finalStyle, topic, market);
-      showToast(`✅ Tạo xong ${styled.length} cảnh!`, 'success');
 
     } catch (e: any) {
-      showToast(e.message || 'Lỗi không xác định');
+      // Even on hard crash, keep whatever segments we have
+      if (segments.length > 0) {
+        showToast(`❌ Lỗi: ${e.message}. Đã giữ ${segments.length} cảnh đã tạo.`);
+      } else {
+        showToast(e.message || 'Lỗi không xác định');
+      }
     } finally {
       setLoading(false);
       setBatchProgress(null);
@@ -368,7 +402,7 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
 
           {/* Generate button */}
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate(false)}
             disabled={loading}
             className="w-full py-4 bg-orange-900/50 hover:bg-orange-800/50 border border-orange-500/30 text-orange-100 font-bold rounded-xl shadow-[0_0_20px_rgba(249,115,22,0.15)] flex items-center justify-center gap-2 transition-all disabled:opacity-50"
           >
@@ -378,9 +412,20 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
             }
           </button>
 
+          {/* 🆕 Resume button — appears after partial failure */}
+          {!loading && lastBatchError && resumeFromScene > 0 && (
+            <button
+              onClick={() => handleGenerate(true)}
+              className="w-full py-3 bg-amber-900/50 hover:bg-amber-800/50 border border-amber-500/40 text-amber-100 font-bold rounded-xl flex items-center justify-center gap-2 transition-all animate-pulse"
+            >
+              <i className="fa-solid fa-rotate-right" />
+              TIẾP TỤC TỪ CẢNH {resumeFromScene + 1} ({segments.length}/{scenes} đã tạo)
+            </button>
+          )}
+
           {/* 🆕 Batch progress bar */}
           {loading && batchProgress && (
-            <BatchProgressBar done={batchProgress.done} total={batchProgress.total} />
+            <BatchProgressBar done={batchProgress.done} total={batchProgress.total} error={lastBatchError} />
           )}
         </div>
       </div>
@@ -449,26 +494,31 @@ const ScriptModule: React.FC<Props> = ({ onScriptGenerated, initialTopic = '' })
   );
 };
 
-// ── 🆕 Batch progress bar component ──────────────────────────────────────────
-function BatchProgressBar({ done, total }: { done: number; total: number }) {
+// ── 🆕 Batch progress bar component (with error reporting) ───────────────────
+function BatchProgressBar({ done, total, error }: { done: number; total: number; error?: BatchError | null }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <div className="bg-[#151515] border border-white/5 rounded-xl p-4 space-y-2">
+    <div className={`border rounded-xl p-4 space-y-2 ${error ? 'bg-red-950/30 border-red-500/30' : 'bg-[#151515] border-white/5'}`}>
       <div className="flex justify-between text-xs text-slate-400">
         <span className="flex items-center gap-2">
-          <i className="fa-solid fa-layer-group text-amber-400" />
-          Đang tạo batch {done}/{total}
+          {error
+            ? <><i className="fa-solid fa-triangle-exclamation text-red-400" /> Batch {error.failedBatch}/{error.totalBatches} thất bại</>
+            : <><i className="fa-solid fa-layer-group text-amber-400" /> Đang tạo batch {done}/{total}</>
+          }
         </span>
-        <span className="text-amber-400 font-bold">{pct}%</span>
+        <span className={`font-bold ${error ? 'text-red-400' : 'text-amber-400'}`}>{pct}%</span>
       </div>
       <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden">
         <div
-          className="h-2 rounded-full bg-gradient-to-r from-orange-600 to-amber-400 transition-all duration-500"
+          className={`h-2 rounded-full transition-all duration-500 ${error ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-orange-600 to-amber-400'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="text-[10px] text-slate-500 text-center">
-        Scenes đang stream dần — cuộn xuống để xem kết quả từng phần
+      <div className="text-[10px] text-center">
+        {error
+          ? <span className="text-red-300">⚠️ Đã lưu {error.completedScenes} cảnh. Nhấn "Tiếp Tục" để thử lại batch còn lại.</span>
+          : <span className="text-slate-500">Scenes đang stream dần — cuộn xuống để xem kết quả từng phần</span>
+        }
       </div>
     </div>
   );
